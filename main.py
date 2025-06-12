@@ -153,5 +153,42 @@ def check_activity(message):
     bot.send_message(uid, "📊 بررسی خریدهای اخیر در حال انجام است...")
     for wallet in user_wallets[uid]:
         bot.send_message(uid, f"✅ بررسی آدرس: {wallet} => خریدی انجام شده است.")
+def get_gmx_positions(wallet_address):
+    url = f"https://gmx-server-mainnet.pyth.network/api/tradingStats?account={wallet_address.lower()}"
+    try:
+        res = requests.get(url)
+        data = res.json()
 
+        if not data or "positions" not in data:
+            return None
+
+        positions = data["positions"]
+        if len(positions) == 0:
+            return None
+
+        # فقط پوزیشن اول برای سادگی
+        pos = positions[0]
+
+        position_type = pos.get("side", "Unknown")
+        leverage = pos.get("leverage", 1)
+        entry = float(pos.get("entryPriceUsd", 0))
+        exit_price = float(pos.get("markPriceUsd", 0))
+        profit_pct = pos.get("unrealizedPnlPercentage", 0)
+        asset = pos.get("indexTokenSymbol", "Unknown")
+        is_open = pos.get("isOpen", False)
+
+        return {
+            "platform": "GMX",
+            "position": position_type,
+            "entry": entry,
+            "exit": exit_price,
+            "profit_pct": profit_pct,
+            "leverage": leverage,
+            "asset": asset.upper(),
+            "status": "باز" if is_open else "بسته"
+        }
+
+    except Exception as e:
+        print("GMX API Error:", e)
+        return None
 bot.polling()
